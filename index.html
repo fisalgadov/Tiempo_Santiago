@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiempo Santiago - Hourly Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 24px;
+        font-family: Arial, sans-serif;
+        background: #f5f7fb;
+        color: #1f2a44;
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+      h1 {
+        margin-top: 0;
+      }
+      .card {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid #e6eaf2;
+        padding: 8px;
+      }
+      .error {
+        color: #c62828;
+      }
+      .muted {
+        color: #5b6780;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Santiago, Chile - Hourly Weather Projection</h1>
+      <p id="status" class="muted">Loading data...</p>
+
+      <div class="grid">
+        <div class="card"><canvas id="tempChart"></canvas></div>
+        <div class="card"><canvas id="humidityChart"></canvas></div>
+        <div class="card"><canvas id="rainChart"></canvas></div>
+      </div>
+
+      <div class="card">
+        <h2>Next 24 hours</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Temperature (°C)</th>
+              <th>Humidity (%)</th>
+              <th>Rain Probability (%)</th>
+            </tr>
+          </thead>
+          <tbody id="forecastRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const LAT = -33.45;
+      const LON = -70.6667;
+
+      const statusEl = document.getElementById("status");
+      const rowsEl = document.getElementById("forecastRows");
+
+      function formatHour(isoTime) {
+        return new Date(isoTime).toLocaleString("en-CL", {
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      }
+
+      function next24HoursData(hourly) {
+        const now = Date.now();
+        const items = hourly.time
+          .map((time, index) => ({
+            time,
+            temperature: hourly.temperature_2m[index],
+            humidity: hourly.relative_humidity_2m[index],
+            rain: hourly.precipitation_probability[index],
+          }))
+          .filter((item) => new Date(item.time).getTime() >= now);
+
+        return items.slice(0, 24);
+      }
+
+      function renderRows(data) {
+        rowsEl.innerHTML = data
+          .map(
+            (item) => `
+          <tr>
+            <td>${formatHour(item.time)}</td>
+            <td>${item.temperature}</td>
+            <td>${item.humidity}</td>
+            <td>${item.rain}</td>
+          </tr>`
+          )
+          .join("");
+      }
+
+      function createLineChart(canvasId, label, labels, values, color) {
+        new Chart(document.getElementById(canvasId), {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label,
+                data: values,
+                borderColor: color,
+                backgroundColor: `${color}33`,
+                fill: true,
+                tension: 0.2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: true } },
+            scales: {
+              x: { ticks: { maxTicksLimit: 8 } },
+              y: { beginAtZero: true },
+            },
+          },
+        });
+      }
+
+      async function loadWeather() {
+        try {
+          const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&hourly=temperature_2m,relative_humidity_2m,precipitation_probability&forecast_days=2&timezone=auto`;
+          const response = await fetch(url);
+          if (!response.ok) throw new Error("Failed to fetch weather data.");
+
+          const json = await response.json();
+          const next24 = next24HoursData(json.hourly);
+
+          if (!next24.length) throw new Error("No hourly data available.");
+
+          renderRows(next24);
+
+          const labels = next24.map((item) => formatHour(item.time));
+          createLineChart(
+            "tempChart",
+            "Temperature (°C)",
+            labels,
+            next24.map((item) => item.temperature),
+            "#e53935"
+          );
+          createLineChart(
+            "humidityChart",
+            "Humidity (%)",
+            labels,
+            next24.map((item) => item.humidity),
+            "#1e88e5"
+          );
+          createLineChart(
+            "rainChart",
+            "Rain Probability (%)",
+            labels,
+            next24.map((item) => item.rain),
+            "#43a047"
+          );
+
+          statusEl.textContent = "Showing hourly forecast for the next 24 hours.";
+        } catch (error) {
+          statusEl.className = "error";
+          statusEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      loadWeather();
+    </script>
+  </body>
+</html>
