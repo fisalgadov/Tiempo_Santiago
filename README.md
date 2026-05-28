@@ -9,7 +9,7 @@ It includes charts for:
 
 ## Public URL
 
-After GitHub Pages finishes deploying, the app should be available at:
+After this branch is merged into `main` and GitHub Pages finishes deploying, the app should be available at:
 
 - https://fisalgadov.github.io/Tiempo_Santiago/
 
