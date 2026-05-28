@@ -7,6 +7,12 @@ It includes charts for:
 - Humidity
 - Rain probability
 
+## Public URL
+
+After GitHub Pages finishes deploying, the app should be available at:
+
+- https://fisalgadov.github.io/Tiempo_Santiago/
+
 ## Run locally
 
 From the repository root:
